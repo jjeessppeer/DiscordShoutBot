@@ -10,8 +10,8 @@ module.exports = {
 		console.log('Joining voice chat.');
 		const user_id = interaction.user.id;
         const member = interaction.guild.members.cache.get(user_id);
-		// voiceEcho.join(member.voice.channel, member);
-		voiceEcho.join(member);
+		voiceEcho.join(member.voice.channel, member);
+		// voiceEcho.join(member);
 		await interaction.reply('Joining voice chat!');
 	},
 };

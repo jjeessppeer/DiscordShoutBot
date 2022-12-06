@@ -4,10 +4,6 @@ const { OpusEncoder } = require('@discordjs/opus');
 const fs = require('fs');
 
 console.log('Initializing voiceecho');
-let clients = [];
-function setClients(c) {
-    clients = c;
-}
 
 class VoiceEcho {
     constructor() {
@@ -21,15 +17,8 @@ class VoiceEcho {
         this.subscription;
     }
 
-    joinVC(user, readyCallback) {
-        // Decide which client to join with
-        // Check for first free client on server.
-
+    joinVC(channel, readyCallback) {
         console.log('Joining voice channel');
-        const channelId = user.voice.channel.id;
-        const channel = clients[0].channels.cache.get(channelId);
-        // console.log(clients[0].voice.adapters);
-        // console.log(clients[1].voice.adapters);
         const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
@@ -59,9 +48,9 @@ class VoiceEcho {
     }
 }
 
-async function join(user) {
+async function join(channel, user) {
     const ve = new VoiceEcho();
-    ve.joinVC(user, () => {
+    ve.joinVC(channel, () => {
         ve.subscripeToUser(user);
     });
 
@@ -77,8 +66,7 @@ async function leave(channel) {
 
 module.exports = {
     join,
-    leave,
-    setClients
+    leave
 };
 
 // const connection = joinVoiceChannel({
