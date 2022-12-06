@@ -13,6 +13,7 @@ module.exports = {
 		}
 
 		try {
+			console.log(interaction.options);
 			await command.execute(interaction);
 		}
         catch (error) {

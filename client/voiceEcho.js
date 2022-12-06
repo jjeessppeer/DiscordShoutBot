@@ -34,7 +34,7 @@ class VoiceEcho {
     }
 
     async subscripeToUser(user) {
-        if (process.argv[3] != 'record') return;
+        // if (process.argv[3] != 'record') return;
 
         const reciever = this.connection.receiver;
         const subscription = reciever.subscribe(
