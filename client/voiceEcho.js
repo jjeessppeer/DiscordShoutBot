@@ -34,16 +34,18 @@ class VoiceEcho {
     }
 
     async subscripeToUser(user) {
-        // Find which connection/channel the user is in.
+        if (process.argv[3] != 'record') return;
+
         const reciever = this.connection.receiver;
         const subscription = reciever.subscribe(
             user.id,
-        { end: { behavior: EndBehaviorType.Manual } });
+            { end: { behavior: EndBehaviorType.Manual } });
         subscription.on('data', (chunk) => {
             // console.log('Audio packet recieved.');
-
-            // Play the recieved audio packet pack in the voice chat.
-            this.connection.playOpusPacket(chunk);
+            process.send({
+                messageType: 'audioPacket',
+                data: chunk });
+            // this.connection.playOpusPacket(chunk);
         });
     }
 }
@@ -68,18 +70,3 @@ module.exports = {
     join,
     leave
 };
-
-// const connection = joinVoiceChannel({
-// 	channelId: channel.id,
-// 	guildId: channel.guild.id,
-// 	adapterCreator: channel.guild.voiceAdapterCreator,
-// });
-
-
-// connection.on(VoiceConnectionStatus.Ready, (oldState, newState) => {
-// 	console.log('Connection is in the Ready state!');
-// });
-
-// player.on(AudioPlayerStatus.Playing, (oldState, newState) => {
-// 	console.log('Audio player is in the Playing state!');
-// });

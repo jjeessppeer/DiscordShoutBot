@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { tokens } = require('./../config.json');
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, EndBehaviorType }
+    = require('@discordjs/voice');
 // const { tokens } = require('./../config.json');
 const voiceEcho = require('./voiceEcho.js');
 
@@ -33,6 +35,15 @@ function loadEvents(c) {
 		}
 	}
 }
+
+process.on('message', (message) => {
+    if (process.argv[2] == 0) return;
+    if (message.messageType == 'audioPacket') {
+        const b = Buffer.from(message.data.data);
+        const connection = getVoiceConnection('1048931377636188252');
+        connection.playOpusPacket(b);
+    }
+});
 
 async function start(tokenIdx) {
 	loadCommands(client);
