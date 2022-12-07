@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const InterprocessPromise = require('./InterprocessPromise.js');
 
 class ShoutGroupManager {
     constructor(clientProcesses) {
@@ -48,17 +49,20 @@ class ShoutGroupManager {
         return 0;
     }
 
-    joinVoiceChat(groupId, channelId, guildId) {
+    async joinVoiceChat(groupId, channelId, guildId) {
         // TODO: check if already in that channel.
         const clientIdx = this.getFreeClientIndex(guildId);
         if (clientIdx == -1) return;
         // Request client to join channel
-        // TODO: to following things in callback/promise instead.
-        this.clientProcesses[clientIdx].send({
-            messageType: 'joinVC',
+        // TODO: add callback/promise for the following. Should handle failed join attempts.
+        await InterprocessPromise.sendMessage(this.clientProcesses[clientIdx], 'joinVC', {
             channelId: channelId,
             guildId: guildId
         });
+        this.channelToGroupMap[channelId] = groupId;
+
+        // let res = await p;
+        // console.log('Response: ', res);
 
         this.shoutGroups[groupId][channelId] = {
             guildId: guildId,
@@ -73,37 +77,37 @@ class ShoutGroupManager {
         return 0;
     }
 
-    dispatchAudioPacket(audioPacket, groupId, channelId, echo = true) {
+    dispatchAudioPacket(guildId, channelId, opusPacket, echo = true) {
+        const groupId = this.getShoutGroup(channelId);
         const shoutGroup = this.shoutGroups[groupId];
-        for (const [cId, info] of Object.entries(shoutGroup)) {
+        let count = 0;
+        for (const [cid, info] of Object.entries(shoutGroup)) {
+            count += 1;
+            // if (!echo && cid == channelId) continue;
             this.clientProcesses[info.clientIdx].send({
                 messageType: 'audioPacket',
-                audioPacket: audioPacket
+                guildId: guildId,
+                opusPacket: opusPacket
             });
         }
+        // console.log(`Sent to ${count}`);
 
     }
 
 }
 
 
-// class ShoutGroup {
-//     constructor(groupId, clientProcesses) {
-//         this.clientProcesses = clientProcesses;
-//         this.groupId = groupId;
-
-//         // this.channels = [];
-//         // this.channelClientMap = {};
-
-//         // this.lastActivityTimestamp;
-//         // this.channelLastActivity = {};
-//         this.shoutChannels = {};
-//     }
-
-//     addChannel(channelId, clientIdx) {
-//         const s = new ShoutChannel(channelId, clientIdx);
-//     }
-// }
+class ShoutGroup {
+    constructor(groupId) {
+        this.groupId = groupId;
+        this.channels = [];
+        this.channelToGuild = {};
+    }
+    addChannel(channelId, guildId) {
+        this.channels.push(channelId);
+        this.channelToGuild[channelId] = guildId;
+    }
+}
 
 // class ShoutChannel {
 //     constructor(channelId, guildId, clientIdx) {

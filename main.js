@@ -9,21 +9,6 @@ console.log('Forking client processes');
 const child1 = fork('./client/client.js', [0, tokens[0]]);
 const child2 = fork('./client/client.js', [1, tokens[1]]);
 const clientProcesses = [child1, child2];
-// const clientProcesses = [child1];
-
-// child1.on('message', (message) => {
-//     if (message.messageType == 'audioPacket') {
-//         clientProcesses.forEach(c => {
-//             c.send({
-//                 messageType: 'audioPacket',
-//                 data: message.data
-//             });
-//         });
-//     }
-//     else if (message.messageType == 'createGroup') {
-//         // TODO: check if channel is already in a group. Leave first then.
-//     }
-// });
 
 // Intialize shout manager
 const shoutManager = new ShoutGroupManager(clientProcesses);
@@ -42,9 +27,10 @@ function onClientMessage(message) {
         console.log('Shout join requested');
         shoutManager.joinVoiceChat(message.groupId, message.channelId, message.guildId);
     }
-    // if (messageType == 'audioPacket') {
-    //     shoutManager.dispatchAudioPacket(message.audioPacket, message.groupId, message.channelId);
-    // }
+    if (messageType == 'audioPacket') {
+        // const buffer = Buffer.from(message.opu)
+        shoutManager.dispatchAudioPacket(message.guildId, message.channelId, message.opusPacket);
+    }
 }
 child1.on('message', onClientMessage);
 child2.on('message', onClientMessage);

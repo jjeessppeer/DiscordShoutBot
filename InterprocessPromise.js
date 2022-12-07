@@ -28,12 +28,23 @@ function resolvePromise(promiseIdentifier, pid, ...args) {
     delete rejecters[promiseIdentifier];
 }
 
+function rejectPromise(promiseIdentifier, pid, ...args) {
+    decrementPending(pid);
+    // TODO: remove event listener if there are no pending events.
+    rejecters[promiseIdentifier](...args);
+    delete resolvers[promiseIdentifier];
+    delete rejecters[promiseIdentifier];
+}
+
 function sendMessage(targetProcess, messageType, data) {
     if (!(targetProcess.pid in pendingPromises)) {
         // Listen for resolution from other process.
         targetProcess.on('message', (message) => {
             if (message.messageType == 'resolvePromise') {
                 resolvePromise(message.promiseIdentifier, targetProcess.pid, ...message.args);
+            }
+            if (message.messageType == 'rejectPromise') {
+                rejectPromise(message.promiseIdentifier, targetProcess.pid, ...message.args);
             }
         });
     }

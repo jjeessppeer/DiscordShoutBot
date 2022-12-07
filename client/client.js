@@ -3,13 +3,59 @@ const { Events } = require('discord.js');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, EndBehaviorType }
     = require('@discordjs/voice');
+const InterprocessPromise = require('./../InterprocessPromise.js');
+const { clientIds } = require('./../config.json');
+
+const AUDIO_BUFFER_SIZE = 2; // Amount of voice packets to buffer before transmitting.
+const AUIDO_FLUSH_INTERVAL = 10;
 
 class ShoutClient {
     constructor(clientIndex = 0, enableCommands = false) {
         this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
         this.clientIndex = clientIndex;
 
+        // Map userId to audio subscriptions.
+        this.audioSubscriptions = {};
+
+        this.audioBuffers = {};
+
         if (enableCommands) this.loadCommands();
+
+        this.client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+            const guildId = newState.guild.id;
+            const channelId = newState.channel.id;
+            const connection = getVoiceConnection(guildId);
+            // console.log(connection);
+            if (connection == undefined) return;
+
+            // Iterate over all member in the channel and subscribe to their audio.
+            const members = newState.channel.members;
+            for (const [userId, member] of members) {
+                if (userId in this.audioSubscriptions) continue; // Already subscribed.
+                if (clientIds.includes(userId)) continue; // User is one of the bots.
+                const reciever = connection.receiver;
+                const subscription = reciever.subscribe(
+                    userId,
+                    { end: { behavior: EndBehaviorType.Manual } });
+                subscription.on('data', (chunk) => {
+                    process.send({
+                        messageType: 'audioPacket',
+                        guildId: guildId,
+                        channelId: newState.channel.id,
+                        opusPacket: chunk
+                    });
+                    // this.audioBuffers[channelId].push(chunk);
+                    // if (this.audioBuffers[channelId].length > AUDIO_BUFFER_SIZE) {
+                    //     const buffer = Buffer.concat(this.audioBuffers[channelId]);
+                    //     this.audioBuffers[channelId] = [];
+                    //     console.log('BUFFER SENT');
+                    // }
+                    // connection.playOpusPacket(chunk);
+                });
+                this.audioSubscriptions[userId] = subscription;
+            }
+            console.log(`Subscriptions: ${Object.keys(this.audioSubscriptions)}`);
+        });
 
         // Load events
         const eventFiles = fs.readdirSync('./client/events').filter(file => file.endsWith('.js'));
@@ -26,6 +72,8 @@ class ShoutClient {
         process.on('message', (message) => {
             if (message.messageType == 'joinVC') {
                 console.log('Client joining VC');
+                // TODO: check if alreay in voice chat
+                // TODO: error on failed join (because of perissions etc.)
                 const guild = this.client.guilds.cache.get(message.guildId);
                 const channel = guild.channels.cache.get(message.channelId);
                 const connection = joinVoiceChannel({
@@ -33,8 +81,17 @@ class ShoutClient {
                     guildId: guild.id,
                     adapterCreator: channel.guild.voiceAdapterCreator,
                 });
-                // TODO: send join confirmation.
-                // connection.once(VoiceConnectionStatus.Ready, readyCallback);
+                // InterprocessPromise.sendPromiseRejection(process, message.promiseIdentifier, 'No permission to join voice channel.');
+                connection.on(VoiceConnectionStatus.Ready, () => {
+                    InterprocessPromise.sendPromiseResolution(process, message.promiseIdentifier);
+                });
+
+                this.audioBuffers[channel.id] = [];
+            }
+            if (message.messageType == 'audioPacket') {
+                const connection = getVoiceConnection(message.guildId);
+                const buffer = Buffer.from(message.opusPacket);
+                connection.playOpusPacket(buffer);
             }
         });
     }
@@ -60,22 +117,9 @@ class ShoutClient {
     }
 }
 
-
-// process.on('message', (message) => {
-//     // if (process.argv[2] == 0) return;
-//     if (message.messageType == 'audioPacket') {
-//         const b = Buffer.from(message.data.data);
-//         const connection = getVoiceConnection('1048931377636188252');
-//         connection.playOpusPacket(b);
-//     }
-// });
-
 async function start(clientIndex, token) {
-    console.log('initializing client 1');
     const client = new ShoutClient(clientIndex, true);
-    console.log('initializing client 1');
     await client.login(token);
 }
-
 
 start(process.argv[2], process.argv[3]);
