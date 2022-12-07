@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-const voiceEcho = require('./../voiceEcho.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()

@@ -5,7 +5,11 @@ const { clientIds, tokens } = require('./config.json');
 
 const GUILD_ID = '1048931377636188252';
 const CHANNEL_ID = '1048931378693161073';
+const BOT_TOKEN = tokens[0];
+const CLIENT_ID = clientIds[0];
+
 const subscribed_users = [];
+
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 
@@ -29,7 +33,7 @@ function voiceStateChange(oldState, newState) {
     const members = newState.channel.members;
     for (const [userId, member] of members) {
         if (subscribed_users.includes(userId)) continue; // Already subscribed.
-        if (clientIds.includes(userId)) continue; // User is one of the bots.
+        if (userId == CLIENT_ID) continue; // the bot itself.
         console.log(`Subscribed to audio stream: ${userId}`);
         subscribed_users.push(userId);
 
@@ -41,6 +45,8 @@ function voiceStateChange(oldState, newState) {
         );
 
         // PROBLEM LIES HERE!
+        // Each user has a separate audio stream.
+        // Somehow need to mix them together before outputing.
         subscription.on('data', (chunk) => {
             connection.playOpusPacket(chunk);
         });
@@ -49,7 +55,7 @@ function voiceStateChange(oldState, newState) {
 
 async function start() {
     client.on(Events.VoiceStateUpdate, voiceStateChange);
-    await client.login(tokens[0]);
+    await client.login(BOT_TOKEN);
     joinVC();
 }
 

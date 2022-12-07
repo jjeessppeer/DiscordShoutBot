@@ -1,6 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-
-const InterprocessPromise = require('./../../InterprocessPromise.js');
+const InterprocessPromise = require('./../../utils/InterprocessPromise.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()

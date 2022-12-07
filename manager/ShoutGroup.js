@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const InterprocessPromise = require('./InterprocessPromise.js');
+const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 
 class ShoutGroupManager {
     constructor(clientProcesses) {

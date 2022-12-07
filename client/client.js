@@ -3,7 +3,7 @@ const { Events } = require('discord.js');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, EndBehaviorType }
     = require('@discordjs/voice');
-const InterprocessPromise = require('./../InterprocessPromise.js');
+const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 const { clientIds } = require('./../config.json');
 
 const AUDIO_BUFFER_SIZE = 2; // Amount of voice packets to buffer before transmitting.

@@ -1,7 +1,7 @@
 const { fork } = require('child_process');
-const { tokens } = require('./config.json');
+const { tokens } = require('./../config.json');
 const { ShoutGroupManager, ShoutGroup } = require('./ShoutGroup.js');
-const InterprocessPromise = require('./InterprocessPromise.js');
+const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 
 console.log('Starting main');
 
