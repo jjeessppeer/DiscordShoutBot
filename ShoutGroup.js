@@ -23,7 +23,7 @@ class ShoutGroupManager {
         while (groupId in this.shoutGroups) groupId = crypto.randomBytes(128).toString('hex');
         // const shoutGroup = new ShoutGroup(groupId, this.clientProcesses);
         // const shoutGroup = {};
-        this.shoutGroups[groupId] = [];
+        this.shoutGroups[groupId] = {};
         console.log(`Created shout group ${groupId}`);
         return groupId;
         // return shoutGroup;
@@ -71,6 +71,17 @@ class ShoutGroupManager {
 
     leaveVC(channelId, guildId) {
         return 0;
+    }
+
+    dispatchAudioPacket(audioPacket, groupId, channelId, echo = true) {
+        const shoutGroup = this.shoutGroups[groupId];
+        for (const [cId, info] of Object.entries(shoutGroup)) {
+            this.clientProcesses[info.clientIdx].send({
+                messageType: 'audioPacket',
+                audioPacket: audioPacket
+            });
+        }
+
     }
 
 }

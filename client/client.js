@@ -3,7 +3,6 @@ const { Events } = require('discord.js');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, EndBehaviorType }
     = require('@discordjs/voice');
-// const voiceEcho = require('./voiceEcho.js');
 
 class ShoutClient {
     constructor(clientIndex = 0, enableCommands = false) {
@@ -34,6 +33,8 @@ class ShoutClient {
                     guildId: guild.id,
                     adapterCreator: channel.guild.voiceAdapterCreator,
                 });
+                // TODO: send join confirmation.
+                // connection.once(VoiceConnectionStatus.Ready, readyCallback);
             }
         });
     }

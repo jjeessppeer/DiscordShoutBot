@@ -3,7 +3,7 @@ const { Events } = require('discord.js');
 module.exports = {
 	name: Events.VoiceStateUpdate,
 	once: false,
-	execute(voiceState) {
-		// console.log(voiceState);
+	execute(oldState, newState) {
+		console.log('Voice state changed');
 	},
 };

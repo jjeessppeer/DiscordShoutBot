@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const voiceEcho = require('./../voiceEcho.js');
+
+const InterprocessPromise = require('./../../InterprocessPromise.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -7,14 +8,13 @@ module.exports = {
 		.setDescription('Create a new shout group for your voice channel.'),
 	async execute(interaction) {
 		const user_id = interaction.user.id;
-        const member = interaction.guild.members.cache.get(user_id);
-		// voiceEcho.join(member.voice.channel, member);
+		const member = interaction.guild.members.cache.get(user_id);
 
-        process.send({
-            messageType: 'createGroup',
-            guildId: interaction.guild.id,
-            channelId: member.voice.channel.id
-        });
-		await interaction.reply('Creating shout group');
+		const groupId = await InterprocessPromise.sendMessage(process, 'createGroup', {
+			guildId: interaction.guild.id,
+			channelId: member.voice.channel.id
+		});
+		// p.then((groupId) => { console.log(groupId); });
+		await interaction.reply(`Shout group created with identifier: \`${groupId}\``);
 	},
 };
