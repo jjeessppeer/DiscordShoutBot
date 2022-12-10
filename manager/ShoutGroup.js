@@ -2,32 +2,58 @@ const crypto = require('crypto');
 const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 
 class ShoutGroupManager {
+    // TODO: add client state check request. Check if stored state is still valid.
     constructor(clientProcesses) {
         this.clientProcesses = clientProcesses;
         this.shoutGroups = {};
-        // { guild, channel, client }
-        this.channelToGroupMap = {};
+        this.shoutChannels = {};
         this.guildClientUsage = {};
-    }
-
-    channelIsInGroup(channelId) {
-        //
-    }
-
-    getShoutGroup(channelId) {
-        // Return the groupId based on channelId.
-        return this.channelToGroupMap[channelId];
     }
 
     createShoutGroup() {
         let groupId = crypto.randomBytes(32).toString('hex');
         while (groupId in this.shoutGroups) groupId = crypto.randomBytes(128).toString('hex');
-        // const shoutGroup = new ShoutGroup(groupId, this.clientProcesses);
-        // const shoutGroup = {};
-        this.shoutGroups[groupId] = {};
+        this.shoutGroups[groupId] = new ShoutGroup(groupId);
         console.log(`Created shout group ${groupId}`);
         return groupId;
-        // return shoutGroup;
+    }
+
+    async addChannelToGroup(groupId, channelId, guildId) {
+        // TODO: hancle if channel is already joined.
+        // TODO: handle invalid group id.
+        const clientIdx = this.getFreeClientIndex(guildId);
+        const shoutChannel = new ShoutChannel(channelId, guildId, this.clientProcesses[clientIdx], clientIdx);
+        await shoutChannel.requestVoiceChannelJoin();
+        
+        shoutChannel.addGroup(this.shoutGroups[groupId]);
+        this.shoutGroups[groupId].addChannel(shoutChannel);
+        
+        this.shoutChannels[channelId] = shoutChannel;
+        console.log(`Added channel to ${groupId}`);
+    }
+
+    dispatchAudioPacket(opusPacket, channelId, originGuildId, userId) {
+        const clientGuildMap = this.shoutChannels[channelId].getClientGuildMap();
+        for (const clientIdx in clientGuildMap) {
+            if (clientGuildMap[clientIdx].length == 0) continue; 
+            // if (shoutChannel.guildId == originGuildId) continue;
+            this.clientProcesses[clientIdx].send({
+                messageType: 'audioPacket',
+                opusPacket: opusPacket,
+                guildId: originGuildId,
+                originGuildId: originGuildId,
+                userId: userId,
+                targetGuilds: clientGuildMap[clientIdx]
+            });
+        }
+        // for (const targetChannel of targetChannelIds) {
+        //     const shoutChannel = this.shoutChannels[tId];
+        //     // if (shoutChannel.guildId == originGuildId) continue;
+        //     console.log(shoutChannel.guildId, ' | ', originGuildId);
+        //     count += 1;
+        //     this.shoutChannels[tId].sendAudioPacket(opusPacket);
+        // }
+        // console.log(count);
     }
 
     getFreeClientIndex(guildId) {
@@ -48,75 +74,80 @@ class ShoutGroupManager {
 
         return 0;
     }
-
-    async joinVoiceChat(groupId, channelId, guildId) {
-        // TODO: check if already in that channel.
-        const clientIdx = this.getFreeClientIndex(guildId);
-        if (clientIdx == -1) return;
-        // Request client to join channel
-        // TODO: add callback/promise for the following. Should handle failed join attempts.
-        await InterprocessPromise.sendMessage(this.clientProcesses[clientIdx], 'joinVC', {
-            channelId: channelId,
-            guildId: guildId
-        });
-        this.channelToGroupMap[channelId] = groupId;
-
-        // let res = await p;
-        // console.log('Response: ', res);
-
-        this.shoutGroups[groupId][channelId] = {
-            guildId: guildId,
-            channelId: channelId,
-            clientIdx: clientIdx
-        };
-        console.log(`Joining ${channelId} with group ${groupId}`);
-        // return clientIdx;
-    }
-
-    leaveVC(channelId, guildId) {
-        return 0;
-    }
-
-    dispatchAudioPacket(guildId, channelId, opusPacket, echo = true) {
-        const groupId = this.getShoutGroup(channelId);
-        const shoutGroup = this.shoutGroups[groupId];
-        let count = 0;
-        for (const [cid, info] of Object.entries(shoutGroup)) {
-            count += 1;
-            // if (!echo && cid == channelId) continue;
-            this.clientProcesses[info.clientIdx].send({
-                messageType: 'audioPacket',
-                guildId: guildId,
-                opusPacket: opusPacket
-            });
-        }
-        // console.log(`Sent to ${count}`);
-
-    }
-
 }
 
+class ShoutChannel {
+    constructor(channelId, guildId, clientProcess, clientIdx) {
+        this.connectedGroups = [];
+        // this.connectedGroup = ;
+        this.channelId = channelId;
+        this.guildId = guildId;
+        this.clientProcess = clientProcess;
+        this.clientIdx = clientIdx; 
+        this.connected = false;
+    }
+
+    addGroup(shoutGroup) {
+        this.connectedGroups.push(shoutGroup);
+    }
+
+    getClientGuildMap() {
+        // TODO: Cache and reuse instead. Only changes on channel join/leave or group creation.
+        const clientGuildMap = { 0: [], 1: [] };
+        for (const shoutGroup of this.connectedGroups) {
+            for (const shoutChannel of shoutGroup.channels) {
+                if (clientGuildMap[shoutChannel.clientIdx].includes(shoutChannel.guildId)) continue;
+                clientGuildMap[shoutChannel.clientIdx].push(shoutChannel.guildId);
+            }
+        }
+        return clientGuildMap;
+    }
+
+    getConnectedChannels() {
+        let channels = [];
+        for (const shoutGroup of this.connectedGroups) {
+            for (const shoutChannel of shoutGroup.channels) {
+                // TODO: check for duplicate channels.
+                channels.push(shoutChannel);
+            }
+        }
+        return channels;
+    }
+
+    async requestVoiceChannelJoin() {
+        await InterprocessPromise.sendMessage(this.clientProcess, 'joinVC', {
+            channelId: this.channelId,
+            guildId: this.guildId
+        });
+        this.connected = true;
+    }
+
+    async requestVoiceChannelLeave() {
+        // TODO
+    }
+
+    async sendAudioPacket(opusPacket) {
+        this.clientProcess.send({
+            messageType: 'audioPacket',
+            opusPacket: opusPacket,
+            guildId: this.guildId
+        });
+    }
+}
 
 class ShoutGroup {
     constructor(groupId) {
         this.groupId = groupId;
         this.channels = [];
-        this.channelToGuild = {};
+        this.channelIds = [];
     }
-    addChannel(channelId, guildId) {
-        this.channels.push(channelId);
-        this.channelToGuild[channelId] = guildId;
+
+    addChannel(channel) {
+        this.channels.push(channel);
+        this.channelIds.push(channel.channelId);
+        // this.channelToGuild[channelId] = guildId;
     }
 }
-
-// class ShoutChannel {
-//     constructor(channelId, guildId, clientIdx) {
-//         this.lastActivityTimestamp;
-//         this.channelId;
-//         this.guildId;
-//         this.clientIdx;
-//     }
-// }
 
 module.exports = {
     ShoutGroupManager,

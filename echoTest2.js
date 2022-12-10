@@ -5,6 +5,7 @@ const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, EndBehavior
 const { clientIds, tokens } = require('./config.json');
 const util = require('util');
 const { decode } = require('punycode');
+const { VoiceBuffer } = require('./client/VoiceBuffer.js');
 
 const GUILD_ID = '1048931377636188252';
 const CHANNEL_ID = '1048931378693161073';
@@ -16,6 +17,8 @@ const subscribed_users = [];
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 const encoder = new OpusEncoder(48000, 2);
+const voiceBuffer = new VoiceBuffer();
+
 
 function joinVC() {
     const guild = client.guilds.cache.get(GUILD_ID);
@@ -49,36 +52,14 @@ function voiceStateChange(oldState, newState) {
         );
 
         subscription.on('data', (chunk) => {
-            // Decodes to PCM signed 16-bit little endian
-            const startTime = performance.now();
-
-            const decoded = encoder.decode(chunk);
-            const decodeTime = performance.now();
-
-            const bytes = decoded.byteLength;
-            const bits = bytes * 8;
-            const samples = bits / 16; // Each sample is 16 bits
-            const frequency = 48000;
-            const time = samples / frequency * 1000;
-
-            const buffer2 = Buffer.alloc(bytes);
-            decoded.copy(buffer2);
-
-            // console.log(`\nNEW SAMPLE\ntime: ${time}\nBYTES: ${bytes}\nBits: ${bytes * 8}\nSamples: ${samples}`);
-            // console.log(`Sample time. ${time}. Encode time: ${encodeTime-startTime}`);
-            // Double volume
-            for (let i = 0; i < bytes; i += 2) {
-                let val = decoded.readInt16LE(i);
-                val *= 5;
-                val = Math.min(32767, val);
-                val = Math.max(-32767, val);
-                buffer2.writeInt16LE(val, i);
+            if (voiceBuffer.hasPacketFrom(userId)) {
+                const outPacket = voiceBuffer.getMergedPackets(userId);
+                connection.playOpusPacket(outPacket);
+                voiceBuffer.reset();
             }
-            const editTime = performance.now();
-            const reencoded = encoder.encode(buffer2);
-            const encodeTime = performance.now();
-            connection.playOpusPacket(reencoded);
-            // process.exit();
+            voiceBuffer.addPacket(chunk, userId);
+            // voiceBuffer.
+            
         });
     }
 }

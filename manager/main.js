@@ -19,17 +19,17 @@ function onClientMessage(message) {
         console.log('Shout creation requested');
         const promiseIdentifier = message.promiseIdentifier;
         const groupId = shoutManager.createShoutGroup();
-        shoutManager.joinVoiceChat(groupId, message.channelId, message.guildId);
+        // TODO: handle errors from add channel below
+        shoutManager.addChannelToGroup(groupId, message.channelId, message.guildId);
         InterprocessPromise.sendPromiseResolution(this, promiseIdentifier, groupId);
-        // console.log(this);
     }
     if (messageType == 'joinGroup') {
         console.log('Shout join requested');
-        shoutManager.joinVoiceChat(message.groupId, message.channelId, message.guildId);
+        shoutManager.addChannelToGroup(message.groupId, message.channelId, message.guildId);
     }
     if (messageType == 'audioPacket') {
         // const buffer = Buffer.from(message.opu)
-        shoutManager.dispatchAudioPacket(message.guildId, message.channelId, message.opusPacket);
+        shoutManager.dispatchAudioPacket(message.opusPacket, message.channelId, message.guildId, message.userId);
     }
 }
 child1.on('message', onClientMessage);
