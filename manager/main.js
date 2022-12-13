@@ -5,10 +5,16 @@ const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 
 console.log('Starting main');
 
-console.log('Forking client processes');
-const child1 = fork('./client/client.js', [0, tokens[0]]);
-const child2 = fork('./client/client.js', [1, tokens[1]]);
-const clientProcesses = [child1, child2];
+const CLIENT_PROCESSES = 2;
+const clientProcesses = [];
+
+// Initialize client processes.
+for (let i = 0; i < CLIENT_PROCESSES; i++) {
+    console.log('Forking client processes ', i);
+    const clientProcess = fork('./client/client.js', [i, tokens[i]]);
+    clientProcess.on('message', onClientMessage);
+    clientProcesses.push(clientProcess);
+}
 
 // Intialize shout manager
 const shoutManager = new ShoutGroupManager(clientProcesses);
@@ -32,5 +38,5 @@ function onClientMessage(message) {
         shoutManager.dispatchAudioPacket(message.opusPacket, message.channelId, message.guildId, message.userId);
     }
 }
-child1.on('message', onClientMessage);
-child2.on('message', onClientMessage);
+
+
