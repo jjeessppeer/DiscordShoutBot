@@ -32,6 +32,34 @@ class ShoutGroupManager {
         console.log(`Added channel to ${groupId}`);
     }
 
+    async leaveChannel(guildId, channelId) {
+        const shoutChannel = this.shoutChannels[channelId];
+        if (shoutChannel == undefined) throw 'Error: Unable to leave that channel';
+        if (shoutChannel.guildId != guildId) throw 'Error: Unable to leave that channel';
+        
+        // Remove the channel from groups.
+        // console.log(shoutChannel.connectedGroups);
+        for (const group of shoutChannel.connectedGroups) {
+            // console.log(group);
+            group.removeChannel(shoutChannel);
+        }
+
+        // Request the client to leave channel
+        await InterprocessPromise.sendMessage(shoutChannel.clientProcess, 'leaveChannel', {
+            channelId: channelId,
+            guildId: guildId
+        });
+
+        console.log(this.guildClientUsage);
+        // Free up the client in the guild
+        const idx = this.guildClientUsage[guildId].indexOf(shoutChannel.clientIdx);
+        this.guildClientUsage[guildId].splice(idx, 1);
+        if (this.guildClientUsage[guildId].length == 0) delete this.guildClientUsage[guildId];
+        console.log(this.guildClientUsage);
+        // Delete the shout channel
+        delete this.shoutChannels[channelId];
+    }
+
     dispatchAudioPacket(opusPacket, channelId, originGuildId, userId) {
         const clientGuildMap = this.shoutChannels[channelId].getClientGuildMap();
         for (const clientIdx in clientGuildMap) {
@@ -93,9 +121,10 @@ class ShoutChannel {
 
     getClientGuildMap() {
         // TODO: Cache and reuse instead. Only changes on channel join/leave or group creation.
-        const clientGuildMap = { 0: [], 1: [] };
+        const clientGuildMap = { };
         for (const shoutGroup of this.connectedGroups) {
             for (const shoutChannel of shoutGroup.channels) {
+                if (!clientGuildMap[shoutChannel.clientIdx]) clientGuildMap[shoutChannel.clientIdx] = [];
                 if (clientGuildMap[shoutChannel.clientIdx].includes(shoutChannel.guildId)) continue;
                 clientGuildMap[shoutChannel.clientIdx].push(shoutChannel.guildId);
             }
@@ -115,15 +144,12 @@ class ShoutChannel {
     }
 
     async requestVoiceChannelJoin() {
+        // TODO: remove function and move to manager.
         await InterprocessPromise.sendMessage(this.clientProcess, 'joinVC', {
             channelId: this.channelId,
             guildId: this.guildId
         });
         this.connected = true;
-    }
-
-    async requestVoiceChannelLeave() {
-        // TODO
     }
 
     async sendAudioPacket(opusPacket) {
@@ -146,6 +172,12 @@ class ShoutGroup {
         this.channels.push(channel);
         this.channelIds.push(channel.channelId);
         // this.channelToGuild[channelId] = guildId;
+    }
+
+    removeChannel(channel) {
+        const channelId = channel.channelId;
+        const idx = this.channels.findIndex((element) => element.channelId == channelId);
+        this.channels.splice(idx, 1);
     }
 }
 

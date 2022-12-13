@@ -16,6 +16,10 @@ process.on('message', (message) => {
         });
 
     }
+    if (message.messageType == 'leaveChannel') {
+        shoutClient.leaveVoiceChat(message.guildId, message.channelId);
+        InterprocessPromise.sendPromiseResolution(process, message.promiseIdentifier);
+    }
     if (message.messageType == 'audioPacket') {
         // const connection = getVoiceConnection(message.guildId);
         // const buffer = Buffer.from(message.opusPacket);

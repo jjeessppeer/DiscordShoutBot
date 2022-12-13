@@ -5,7 +5,7 @@ const InterprocessPromise = require('./../utils/InterprocessPromise.js');
 
 console.log('Starting main');
 
-const CLIENT_PROCESSES = 2;
+const CLIENT_PROCESSES = 3;
 const clientProcesses = [];
 
 // Initialize client processes.
@@ -31,11 +31,17 @@ function onClientMessage(message) {
     }
     if (messageType == 'joinGroup') {
         console.log('Shout join requested');
+        // TODO: Add try catch. add promise status return.
         shoutManager.addChannelToGroup(message.groupId, message.channelId, message.guildId);
     }
     if (messageType == 'audioPacket') {
-        // const buffer = Buffer.from(message.opu)
         shoutManager.dispatchAudioPacket(message.opusPacket, message.channelId, message.guildId, message.userId);
+    }
+    if (messageType == 'leaveChannel') {
+        // TODO: Add try catch. add promise status return.
+        shoutManager.leaveChannel(message.guildId, message.channelId);
+        console.log('Channel leave requested');
+        
     }
 }
 

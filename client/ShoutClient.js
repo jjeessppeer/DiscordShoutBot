@@ -22,9 +22,9 @@ class ShoutClient {
 
         this.client.on(Events.VoiceStateUpdate, (oldState, newState) => {
             const guildId = newState.guild.id;
+            if (!newState.channel) return;
             const channelId = newState.channel.id;
             const connection = getVoiceConnection(guildId);
-            // console.log(connection);
             if (connection == undefined) return;
 
             // Iterate over all member in the channel and subscribe to their audio.
@@ -76,6 +76,14 @@ class ShoutClient {
         });
         this.voiceBuffers[guild.id] = new VoiceBuffer();
         return connection;
+    }
+
+    leaveVoiceChat(guildId, channelId) {
+        console.log('Client leaving VC');
+        const guild = this.client.guilds.cache.get(guildId);
+        const connection = getVoiceConnection(guildId);
+        connection.disconnect();
+        connection.destroy();
     }
 
     audioRecieved(opusPacket, userId, targetGuilds) {
